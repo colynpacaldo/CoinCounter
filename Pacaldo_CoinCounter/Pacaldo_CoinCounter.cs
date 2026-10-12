@@ -1,9 +1,3 @@
-// DIP Activity - Philippine Peso Coin Counter
-// Visual Studio / C# (Windows Forms, .NET 8).
-// No third-party libraries: only System.Drawing is used to load/show the bitmap.
-// Every image-processing step (grayscale, Otsu threshold, morphology, hole filling,
-// connected-component labelling, feature measurement, classification) is hand-written.
-
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -16,7 +10,6 @@ using System.Windows.Forms;
 
 namespace Pacaldo_CoinCounter
 {
-    // ------------------------------------------------------------------ data
     public class Coin
     {
         public int Area;
@@ -25,10 +18,8 @@ namespace Pacaldo_CoinCounter
         public double Value;
     }
 
-    // ------------------------------------------------------- image processing
     public static class CoinProcessor
     {
-        // name, value (pesos) - ordered smallest to largest coin
         static readonly string[] Names = { "5 sentimo", "10 sentimo", "25 sentimo", "1 piso", "5 piso", "10 piso" };
         static readonly double[] Values = { 0.05, 0.10, 0.25, 1.00, 5.00, 10.00 };
 
@@ -70,7 +61,6 @@ namespace Pacaldo_CoinCounter
             return thr;
         }
 
-        // square structuring element (separable: rows then columns)
         static bool[,] Morph(bool[,] m, int r, bool dilate)
         {
             int h = m.GetLength(0), w = m.GetLength(1);
@@ -108,7 +98,6 @@ namespace Pacaldo_CoinCounter
         static bool[,] Close(bool[,] m, int r) { return Morph(Morph(m, r, true), r, false); }
         static bool[,] Open(bool[,] m, int r) { return Morph(Morph(m, r, false), r, true); }
 
-        // fill interior holes: flood the background from the border, the rest is inside an object
         static bool[,] FillHoles(bool[,] m)
         {
             int h = m.GetLength(0), w = m.GetLength(1);
@@ -137,19 +126,16 @@ namespace Pacaldo_CoinCounter
             double[,] gray = ToGray(bmp);
             int h = gray.GetLength(0), w = gray.GetLength(1);
 
-            // 1. threshold (coins are darker than the white scanner bed)
             int thr = Otsu(gray);
             var mask = new bool[h, w];
             for (int y = 0; y < h; y++)
                 for (int x = 0; x < w; x++) mask[y, x] = gray[y, x] < thr;
 
-            // 2. morphology
             mask = Close(mask, 1);
             mask = Open(mask, 2);
             bool[,] filled = FillHoles(mask);
             bool[,] closedRaw = Close(mask, 1);
 
-            // 3. connected components (4-connectivity, BFS) + measurements
             var visited = new bool[h, w];
             var coins = new List<Coin>();
             var q = new Queue<int>();
@@ -188,7 +174,6 @@ namespace Pacaldo_CoinCounter
             return coins;
         }
 
-        // group diameters at natural gaps, then map groups smallest -> largest denomination
         static void Classify(List<Coin> coins)
         {
             if (coins.Count == 0) return;
@@ -201,9 +186,9 @@ namespace Pacaldo_CoinCounter
             int offset = k < 4 ? Math.Max(0, Names.Length - k) : 0;
             foreach (var c in coins)
             {
-                int g = cuts.Count(cut => c.Diameter > cut);         // group index (already sorted by size)
+                int g = cuts.Count(cut => c.Diameter > cut);         
                 int idx = Math.Min(g + offset, Names.Length - 1);
-                if (c.HoleRatio > 0.03) idx = 0;                     // the holed coin is the 5 sentimo
+                if (c.HoleRatio > 0.03) idx = 0;                     
                 c.Name = Names[idx];
                 c.Value = Values[idx];
             }
@@ -242,7 +227,6 @@ namespace Pacaldo_CoinCounter
         }
     }
 
-    // ------------------------------------------------------------------- UI
     public class MainForm : Form
     {
         static readonly Color Navy = Color.FromArgb(24, 38, 66);
@@ -274,7 +258,6 @@ namespace Pacaldo_CoinCounter
                 if (files.Length > 0) LoadAndProcess(files[0]);
             };
 
-            // ---------- image area (fill)
             var imgHost = new Panel { Dock = DockStyle.Fill, Padding = new Padding(16), BackColor = Bg };
             var imgCard = new Panel { Dock = DockStyle.Fill, BackColor = Color.White, BorderStyle = BorderStyle.FixedSingle };
             pic = new PictureBox { Dock = DockStyle.Fill, SizeMode = PictureBoxSizeMode.Zoom, BackColor = Color.White };
@@ -290,7 +273,6 @@ namespace Pacaldo_CoinCounter
             imgCard.Controls.Add(lblHint);
             imgHost.Controls.Add(imgCard);
 
-            // ---------- results panel (right)
             var side = new Panel { Dock = DockStyle.Right, Width = 340, Padding = new Padding(0, 16, 16, 16), BackColor = Bg };
             var card = new Panel { Dock = DockStyle.Fill, BackColor = Color.White, BorderStyle = BorderStyle.FixedSingle };
 
@@ -342,7 +324,6 @@ namespace Pacaldo_CoinCounter
             card.Controls.Add(lblResults);
             side.Controls.Add(card);
 
-            // ---------- status bar (bottom)
             var status = new Panel { Dock = DockStyle.Bottom, Height = 28, BackColor = Color.FromArgb(228, 232, 240) };
             lblStatus = new Label
             {
@@ -354,7 +335,6 @@ namespace Pacaldo_CoinCounter
             };
             status.Controls.Add(lblStatus);
 
-            // ---------- toolbar
             var bar = new Panel { Dock = DockStyle.Top, Height = 56, BackColor = Color.White, Padding = new Padding(16, 9, 16, 9) };
             btnLoad = MakeButton("Open image", Accent, Color.White);
             btnSave = MakeButton("Save result", Color.FromArgb(226, 232, 240), Navy);
@@ -377,7 +357,6 @@ namespace Pacaldo_CoinCounter
             bar.Controls.Add(btnSave);
             bar.Controls.Add(chkOverlay);
 
-            // ---------- header
             var header = new Panel { Dock = DockStyle.Top, Height = 70, BackColor = Navy };
             header.Controls.Add(new Label
             {
@@ -396,7 +375,6 @@ namespace Pacaldo_CoinCounter
                 Location = new Point(20, 43)
             });
 
-            // dock order: Fill first, then edges (last added = outermost)
             Controls.Add(imgHost);
             Controls.Add(side);
             Controls.Add(status);
